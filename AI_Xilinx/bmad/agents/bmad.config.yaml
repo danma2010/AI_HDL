@@ -1,0 +1,20 @@
+# .bmad/pipeline-hooks.yaml
+stages:
+  - name: "lint_check"
+    agent: "fpga_developer"
+    run_cmd: "verilator --lint-only -Wall -Wno-DECLFILENAME rtl/*.sv"
+    on_failure:
+      action: "reprompt_agent"
+      target: "fpga_developer"
+      inject_stdin: true
+
+  - name: "simulation_test"
+    agent: "fpga_dv_lead"
+    run_cmd: "pytest tb/ -v --sim=verilator" # or "make -C sim/"
+    on_failure:
+      action: "reprompt_agent"
+      target: "fpga_developer"
+      feedback_template: |
+        The test suite failed with the following simulation log:
+        {{ stdout }}
+        Analyze the failing cycle and assertion errors, then fix the RTL without altering the interfaces in ARCH.md.

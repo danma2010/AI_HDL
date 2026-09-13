@@ -1,0 +1,49 @@
+====================================== FRONT-HAUL & FREQ DOMAIN ======================================
+ [ 25G/10G Optical ] 
+        │
+        ▼ (GTY Transceivers)
+ [ eCPRI / O-RAN Deframer (Soft IP) ] ── (C-Plane / Timing Sync) ──► [ IEEE 1588 / PTP Stack in RPU ]
+        │
+        ▼ (U-Plane IQ: BFP9-14)
+ [ Decompression / Depruning ]
+        │
+        ▼ (Frequency-Domain Resource Elements)
+ [ Soft IFFT Core + Cyclic Prefix Insertion ]  <── (Per-channel 2048/4096-pt, Radix-4 Pipelined)
+        │
+====================================== TIME-DOMAIN DFE PIPELINE ======================================
+        │ (Time-Domain Baseband @ ~122.88 - 491.52 MSPS)
+        ▼
+ ┌──────────────────────────────────────────┐
+ │ Soft PC-CFR (Peak Cancellation CFR)      │  <── 2-Stage iterative canceller
+ └──────────────────────────────────────────┘      (Shared peak detector + pulse generator)
+        │
+        ▼
+ ┌──────────────────────────────────────────┐
+ │ Forward DPD Actuator (Soft GMP Engine)   │  <── Low-order Generalized Memory Polynomial
+ └──────────────────────────────────────────┘      LUT-based magnitude + complex FIR slices
+        │                                                                                                             ▲
+        │                                                                                                             │ (Updated Coefficients via AXI-Stream)
+        ▼                                                                                                             │
+====================================== HARD CONVERTERS (RF DATA CONVERTERS) =========================
+ [ Gen-3 RF-DAC Subsystem ]                                                                          │
+   ├── Hard DUC (Mixer + Interpolator 4x/8x)                                               │
+   └── Direct RF-DAC Core (up to 5-10 GSPS)                                                 │
+        │                                                                                                              │
+        ▼ (Analog RF Output)                                                                             │
+     [ RF PA ] ───┬───────────────────────────────────┤
+                  │ (Coupled RF Feedback)                                                              │
+                  ▼                                                                                                   │
+ [ Gen-3 RF-ADC Subsystem (Shared ORx) ]                                                    │
+   ├── Direct RF-ADC Core                                                                            │
+   └── Hard DDC (Mixer + Decimator)                                                         │
+        │                                                                                                            │
+====================================== SHARED DPD ADAPTATION LOOP ===================================
+        │ (Digital Down-Converted Feedback)                                                  │
+        ▼                                                                                                           │
+ [ Capture Buffer Engine (UltraRAM / BRAM) ]                                               │  <── Time-muxed capture across Antennas 0-3
+        │                                                                                                            │
+        ▼ (AXI DMA / High-Speed Interconnect)                                              │
+ [ ARM Cortex-A53 APU Subsystem ]                                                            │
+   ├── Buffer Time-Alignment & Fractional Delay                                        │
+   ├── Model Extraction (QR Decomposition / LS)                                        │
+   └── Stability Check ────────────────────────────────┘
